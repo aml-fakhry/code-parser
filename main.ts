@@ -74,7 +74,7 @@ function getNestCommonImportSpecifiers(curAst: t.Node) {
 }
 
 function getOtherImportDeclarations() {
-  let imports: t.ImportDeclaration[];
+  let imports: t.ImportDeclaration[] = [];
   traverse(patternAst, {
     enter(path) {
       if (
@@ -90,6 +90,7 @@ function getOtherImportDeclarations() {
 
 const { methodDecorators, statements, params } = extractMethodInfo();
 const importSpecifiers = getNestCommonImportSpecifiers(patternAst);
+const otherImports = getOtherImportDeclarations();
 
 const ast = parse(code, {
   sourceType: 'module',
@@ -113,9 +114,10 @@ function hasLocalImport(specifiers: any[], importName: string): boolean {
   return specifiers.some((s) => s.local.name === importName);
 }
 
+let shouldAddOtherImports = false;
+
 traverse(ast, {
   enter(path) {
-    // in this example change all the variable `n` to `x`
     if (path.isClassMethod() && hasMethodDecorator(path, 'Get')) {
       if (!hasMethodDecorator(path, 'UseGuards')) {
         path.node.decorators = [
@@ -131,11 +133,16 @@ traverse(ast, {
     ) {
       const oldSpes = path.node.specifiers;
       if (!hasLocalImport(oldSpes, 'UseGuards')) {
+        shouldAddOtherImports = true;
         path.node.specifiers = [...oldSpes, ...importSpecifiers];
       }
     }
   },
 });
+
+if (shouldAddOtherImports) {
+  ast.program.body = [...otherImports, ...ast.program.body];
+}
 
 // generate code <- ast
 const output = generate(ast, { retainLines: true });
