@@ -1,0 +1,76 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { Request } from 'express';
+import { AttributesService } from './attributes.service';
+import { CreateAttributeDto } from './dto/create-attribute.dto';
+import { UpdateAttributeDto } from './dto/update-attribute.dto';
+
+@Controller('attributes')
+export class AttributesController {
+  constructor(private readonly attributesService: AttributesService) {}
+
+  @Post()
+  create(@Body() createAttributeDto: CreateAttributeDto) {
+    return this.attributesService.create(createAttributeDto);
+  }
+
+  @Get()
+  findAll(@Req() req: Request) {
+    const user = req.user;
+    console.log({ user });
+    const currentBranchId = +user['branchId'];
+    // console.log({ x: +user['branchId'] });
+    return this.attributesService.findAll(currentBranchId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('/search')
+  search(@Req() req: Request, @Query('key') key: string) {
+    const user = req.user;
+    const currentBranchId = +user['branchId'];
+    return this.attributesService.search(key, currentBranchId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':id')
+  findOne(@Req() req: Request, @Param('id') id: string) {
+    const user = req.user;
+    const currentBranchId = +user['branchId'];
+    return this.attributesService.findOne(+id, currentBranchId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id')
+  update(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() updateAttributeDto: UpdateAttributeDto
+  ) {
+    const user = req.user;
+    const currentBranchId = +user['branchId'];
+    return this.attributesService.update(
+      currentBranchId,
+      +id,
+      updateAttributeDto
+    );
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(':id')
+  remove(@Req() req: Request, @Param('id') id: string) {
+    const user = req.user;
+    const currentBranchId = +user['branchId'];
+    return this.attributesService.remove(+id, currentBranchId);
+  }
+}
