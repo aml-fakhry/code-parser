@@ -1,23 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
-import { AttributesService } from './attributes.service';
-import { CreateAttributeDto } from './dto/create-attribute.dto';
-import { UpdateAttributeDto } from './dto/update-attribute.dto';
-@Controller('attributes')
-export class AttributesController {
-  constructor(private readonly attributesService: AttributesService) {}
-  @Post()
-  create(@Body()
-  createAttributeDto: CreateAttributeDto) {
-    return this.attributesService.create(createAttributeDto);
-  }
-  @Get()
-  @UseGuards(AuthGuard('jwt'))
-  findAll(@Req()
-  req: Request) {
+import { BarcodeService } from './barcode.service';
+
+@Controller('barcodes')export class
+BarcodeController {
+  constructor(private readonly barcodeService: BarcodeService) {}
+
+  @Get()@UseGuards(AuthGuard('jwt'))
+  findByBarcode(@Req()req: Request, @Req()req: Request, @Query('barcode')barcode: string) {const user = req.user;const currentBranchId = +user['branchId'];
     const user = req.user;
     const currentBranchId = +user['branchId'];
-    return this.attributesService.findAll(currentBranchId);
+    return this.barcodeService.findByBarcode(barcode, currentBranchId);
   }
 }

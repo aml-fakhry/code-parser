@@ -91,5 +91,5 @@ traverse(ast, {
 });
 
 // generate code <- ast
-const output = generate(ast, undefined, code);
+const output = generate(ast, { retainLines: true });
 fs.writeFileSync(path.resolve('./test/result.out'), output.code);
