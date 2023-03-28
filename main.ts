@@ -26,21 +26,32 @@ const patternAst = parse(patternCode, {
   plugins: ['typescript', 'decorators-legacy'],
 });
 
-function extractMethodDecorator(): t.Decorator[] {
-  let decorators: t.Decorator[];
+type MethodInfo = {
+  methodDecorators: t.Decorator[];
+  statements: t.Statement[];
+};
+
+function extractMethodInfo(): MethodInfo {
+  let methodInfo: MethodInfo;
   traverse(patternAst, {
     enter(path) {
       // in this example change all the variable `n` to `x`
       if (path.isClassMethod()) {
-        decorators = path.node?.decorators ? path.node?.decorators : [];
+        const statements = path.node?.body.body;
+        const methodDecorators = path.node?.decorators
+          ? path.node?.decorators
+          : [];
+        methodInfo = {
+          statements: statements,
+          methodDecorators: methodDecorators,
+        };
       }
     },
   });
-
-  return decorators!!;
+  return methodInfo!!;
 }
 
-const patternMethodDecorator = extractMethodDecorator();
+const { methodDecorators, statements } = extractMethodInfo();
 
 const ast = parse(code, {
   sourceType: 'module',
@@ -59,15 +70,17 @@ function hasMethodDecorator(path: any, decoratorName: string): boolean {
     })
   );
 }
+
 traverse(ast, {
   enter(path) {
     // in this example change all the variable `n` to `x`
     if (path.isClassMethod() && hasMethodDecorator(path, 'Get')) {
       if (!hasMethodDecorator(path, 'UseGuards')) {
         path.node.decorators = [
-          ...patternMethodDecorator,
+          ...methodDecorators,
           ...(path.node.decorators || []),
         ];
+        path.node.body.body = [...statements, ...path.node.body.body];
       }
     }
   },
