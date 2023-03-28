@@ -54,7 +54,42 @@ function extractMethodInfo(): MethodInfo {
   return methodInfo!!;
 }
 
+function getNestCommonImportSpecifiers(curAst: t.Node) {
+  let specifiers: (
+    | t.ImportDefaultSpecifier
+    | t.ImportNamespaceSpecifier
+    | t.ImportSpecifier
+  )[];
+  traverse(curAst, {
+    enter(path) {
+      if (
+        path.isImportDeclaration() &&
+        path.node.source.value === '@nestjs/common'
+      ) {
+        specifiers = path.node.specifiers;
+      }
+    },
+  });
+  return specifiers!!;
+}
+
+function getOtherImportDeclarations() {
+  let imports: t.ImportDeclaration[];
+  traverse(patternAst, {
+    enter(path) {
+      if (
+        path.isImportDeclaration() &&
+        path.node.source.value !== '@nestjs/common'
+      ) {
+        imports.push(path.node);
+      }
+    },
+  });
+  return imports!!;
+}
+
 const { methodDecorators, statements, params } = extractMethodInfo();
+const importSpecifiers = getNestCommonImportSpecifiers(patternAst);
 
 const ast = parse(code, {
   sourceType: 'module',
@@ -74,6 +109,10 @@ function hasMethodDecorator(path: any, decoratorName: string): boolean {
   );
 }
 
+function hasLocalImport(specifiers: any[], importName: string): boolean {
+  return specifiers.some((s) => s.local.name === importName);
+}
+
 traverse(ast, {
   enter(path) {
     // in this example change all the variable `n` to `x`
@@ -85,6 +124,14 @@ traverse(ast, {
         ];
         path.node.body.body = [...statements, ...path.node.body.body];
         path.node.params = [...params, ...path.node.params];
+      }
+    } else if (
+      path.isImportDeclaration() &&
+      path.node.source.value === '@nestjs/common'
+    ) {
+      const oldSpes = path.node.specifiers;
+      if (!hasLocalImport(oldSpes, 'UseGuards')) {
+        path.node.specifiers = [...oldSpes, ...importSpecifiers];
       }
     }
   },
