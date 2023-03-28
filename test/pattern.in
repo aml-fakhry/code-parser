@@ -8,6 +8,7 @@ export class TestClass {
   findAll(@Req() req: Request) {
     const user = req.user;
     const currentBranchId = +user['branchId'];
+    return this.couponsService.create(currentBranchId);
   }
 
 }

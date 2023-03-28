@@ -7,12 +7,6 @@ import path from 'path';
 import * as readline from 'readline';
 import util from 'util';
 
-const options = {
-  sourceType: 'module',
-
-  plugins: ['typescript', 'decorators-legacy'],
-};
-
 const patternCode = fs.readFileSync(path.resolve('./test/pattern.in'), {
   encoding: 'utf-8',
 });
@@ -28,6 +22,12 @@ type MethodInfo = {
   methodDecorators: t.Decorator[];
   statements: t.Statement[];
   params: (t.Identifier | t.RestElement | t.TSParameterProperty | t.Pattern)[];
+  returnArgs: (
+    | t.ArgumentPlaceholder
+    | t.JSXNamespacedName
+    | t.SpreadElement
+    | t.Expression
+  )[];
 };
 
 function extractMethodInfo(): MethodInfo {
@@ -41,10 +41,17 @@ function extractMethodInfo(): MethodInfo {
         const methodDecorators = path.node?.decorators
           ? path.node?.decorators
           : [];
+        const returnArgs = (statements.pop() as any).argument.arguments as (
+          | t.ArgumentPlaceholder
+          | t.JSXNamespacedName
+          | t.SpreadElement
+          | t.Expression
+        )[];
         methodInfo = {
           params: params,
           statements: statements,
           methodDecorators: methodDecorators,
+          returnArgs,
         };
       }
     },
@@ -86,7 +93,8 @@ function getOtherImportDeclarations() {
   return imports!!;
 }
 
-const { methodDecorators, statements, params } = extractMethodInfo();
+const { methodDecorators, statements, params, returnArgs } =
+  extractMethodInfo();
 const importSpecifiers = getNestCommonImportSpecifiers(patternAst);
 const otherImports = getOtherImportDeclarations();
 
@@ -135,6 +143,10 @@ function handleFile(filePath: string) {
           ];
           path.node.body.body = [...statements, ...path.node.body.body];
           path.node.params = [...params, ...path.node.params];
+          const oldCallExp = (
+            path.node.body.body[path.node.body.body.length - 1] as any
+          ).argument as t.CallExpression;
+          oldCallExp.arguments = [...oldCallExp.arguments, ...returnArgs];
         }
       } else if (
         path.isImportDeclaration() &&
@@ -168,6 +180,7 @@ async function handleInput() {
   while (true) {
     const path = await question('enter a file path >');
     handleFile(path);
+    console.log('');
   }
 }
 
