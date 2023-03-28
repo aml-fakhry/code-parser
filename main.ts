@@ -4,6 +4,8 @@ import traverse, { NodePath } from '@babel/traverse';
 import generate from '@babel/generator';
 import fs from 'fs';
 import path from 'path';
+import * as readline from 'readline';
+import util from 'util';
 
 const options = {
   sourceType: 'module',
@@ -12,10 +14,6 @@ const options = {
 };
 
 const patternCode = fs.readFileSync(path.resolve('./test/pattern.in'), {
-  encoding: 'utf-8',
-});
-
-const code = fs.readFileSync(path.resolve('./test/input.in'), {
   encoding: 'utf-8',
 });
 
@@ -92,12 +90,6 @@ const { methodDecorators, statements, params } = extractMethodInfo();
 const importSpecifiers = getNestCommonImportSpecifiers(patternAst);
 const otherImports = getOtherImportDeclarations();
 
-const ast = parse(code, {
-  sourceType: 'module',
-
-  plugins: ['typescript', 'decorators-legacy'],
-});
-
 function hasMethodDecorator(path: any, decoratorName: string): boolean {
   return (
     !!path &&
@@ -114,36 +106,69 @@ function hasLocalImport(specifiers: any[], importName: string): boolean {
   return specifiers.some((s) => s.local.name === importName);
 }
 
-let shouldAddOtherImports = false;
-
-traverse(ast, {
-  enter(path) {
-    if (path.isClassMethod() && hasMethodDecorator(path, 'Get')) {
-      if (!hasMethodDecorator(path, 'UseGuards')) {
-        path.node.decorators = [
-          ...(path.node.decorators || []),
-          ...methodDecorators,
-        ];
-        path.node.body.body = [...statements, ...path.node.body.body];
-        path.node.params = [...params, ...path.node.params];
-      }
-    } else if (
-      path.isImportDeclaration() &&
-      path.node.source.value === '@nestjs/common'
-    ) {
-      const oldSpes = path.node.specifiers;
-      if (!hasLocalImport(oldSpes, 'UseGuards')) {
-        shouldAddOtherImports = true;
-        path.node.specifiers = [...oldSpes, ...importSpecifiers];
-      }
-    }
-  },
+const scanner = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
 });
 
-if (shouldAddOtherImports) {
-  ast.program.body = [...otherImports, ...ast.program.body];
+function handleFile(filePath: string) {
+  console.log(filePath);
+  const code = fs.readFileSync(path.resolve(filePath), {
+    encoding: 'utf-8',
+  });
+
+  const ast = parse(code, {
+    sourceType: 'module',
+
+    plugins: ['typescript', 'decorators-legacy'],
+  });
+
+  let shouldAddOtherImports = false;
+
+  traverse(ast, {
+    enter(path) {
+      if (path.isClassMethod() && hasMethodDecorator(path, 'Get')) {
+        if (!hasMethodDecorator(path, 'UseGuards')) {
+          path.node.decorators = [
+            ...(path.node.decorators || []),
+            ...methodDecorators,
+          ];
+          path.node.body.body = [...statements, ...path.node.body.body];
+          path.node.params = [...params, ...path.node.params];
+        }
+      } else if (
+        path.isImportDeclaration() &&
+        path.node.source.value === '@nestjs/common'
+      ) {
+        const oldSpes = path.node.specifiers;
+        if (!hasLocalImport(oldSpes, 'UseGuards')) {
+          shouldAddOtherImports = true;
+          path.node.specifiers = [...oldSpes, ...importSpecifiers];
+        }
+      }
+    },
+  });
+
+  if (shouldAddOtherImports) {
+    ast.program.body = [...otherImports, ...ast.program.body];
+  }
+
+  // generate code <- ast
+  const output = generate(ast, { retainLines: true });
+  fs.writeFileSync(filePath, output.code);
 }
 
-// generate code <- ast
-const output = generate(ast, { retainLines: true });
-fs.writeFileSync(path.resolve('./test/result.out'), output.code);
+function question(q: string) {
+  return new Promise<string>((resolve) => {
+    scanner.question(q, (reply) => resolve(reply));
+  });
+}
+
+async function handleInput() {
+  while (true) {
+    const path = await question('enter a file path >');
+    handleFile(path);
+  }
+}
+
+handleInput();
