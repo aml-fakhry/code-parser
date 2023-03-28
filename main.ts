@@ -29,6 +29,7 @@ const patternAst = parse(patternCode, {
 type MethodInfo = {
   methodDecorators: t.Decorator[];
   statements: t.Statement[];
+  params: (t.Identifier | t.RestElement | t.TSParameterProperty | t.Pattern)[];
 };
 
 function extractMethodInfo(): MethodInfo {
@@ -37,11 +38,13 @@ function extractMethodInfo(): MethodInfo {
     enter(path) {
       // in this example change all the variable `n` to `x`
       if (path.isClassMethod()) {
+        const params = path.node.params;
         const statements = path.node?.body.body;
         const methodDecorators = path.node?.decorators
           ? path.node?.decorators
           : [];
         methodInfo = {
+          params: params,
           statements: statements,
           methodDecorators: methodDecorators,
         };
@@ -51,7 +54,7 @@ function extractMethodInfo(): MethodInfo {
   return methodInfo!!;
 }
 
-const { methodDecorators, statements } = extractMethodInfo();
+const { methodDecorators, statements, params } = extractMethodInfo();
 
 const ast = parse(code, {
   sourceType: 'module',
@@ -81,6 +84,7 @@ traverse(ast, {
           ...(path.node.decorators || []),
         ];
         path.node.body.body = [...statements, ...path.node.body.body];
+        path.node.params = [...params, ...path.node.params];
       }
     }
   },

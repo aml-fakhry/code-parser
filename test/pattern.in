@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 
 export class TestClass {
+
   @UseGuards(AuthGuard('jwt'))
   findAll(@Req() req: Request) {
     const user = req.user;

@@ -24,11 +24,8 @@ export class AttributesController {
   create(@Body() createAttributeDto: CreateAttributeDto) {
     return this.attributesService.create(createAttributeDto);
   }
-
   @Get()
-  findAll(@Req() req: Request) {
-    console.log({ user });
-    // console.log({ x: +user['branchId'] });
+  findAll() {
     return this.attributesService.findAll(currentBranchId);
   }
 }

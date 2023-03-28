@@ -18,10 +18,6 @@ export class AttributesController {
   req: Request) {
     const user = req.user;
     const currentBranchId = +user['branchId'];
-    console.log({
-      user
-    });
-    // console.log({ x: +user['branchId'] });
     return this.attributesService.findAll(currentBranchId);
   }
 }
