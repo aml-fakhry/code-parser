@@ -80,8 +80,8 @@ traverse(ast, {
     if (path.isClassMethod() && hasMethodDecorator(path, 'Get')) {
       if (!hasMethodDecorator(path, 'UseGuards')) {
         path.node.decorators = [
-          ...methodDecorators,
           ...(path.node.decorators || []),
+          ...methodDecorators,
         ];
         path.node.body.body = [...statements, ...path.node.body.body];
         path.node.params = [...params, ...path.node.params];
@@ -91,5 +91,5 @@ traverse(ast, {
 });
 
 // generate code <- ast
-const output = generate(ast);
+const output = generate(ast, undefined, code);
 fs.writeFileSync(path.resolve('./test/result.out'), output.code);

@@ -12,8 +12,8 @@ export class AttributesController {
   createAttributeDto: CreateAttributeDto) {
     return this.attributesService.create(createAttributeDto);
   }
-  @UseGuards(AuthGuard('jwt'))
   @Get()
+  @UseGuards(AuthGuard('jwt'))
   findAll(@Req()
   req: Request) {
     const user = req.user;
