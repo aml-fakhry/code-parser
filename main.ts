@@ -11,8 +11,18 @@ const patternCode = fs.readFileSync(path.resolve('./test/pattern.in'), {
   encoding: 'utf-8',
 });
 
+const pattern2Code = fs.readFileSync(path.resolve('./test/pattern2.in'), {
+  encoding: 'utf-8',
+});
+
 // parse the code -> ast
 const patternAst = parse(patternCode, {
+  sourceType: 'module',
+
+  plugins: ['typescript', 'decorators-legacy'],
+});
+
+const pattern2Ast = parse(pattern2Code, {
   sourceType: 'module',
 
   plugins: ['typescript', 'decorators-legacy'],
@@ -30,9 +40,9 @@ type MethodInfo = {
   )[];
 };
 
-function extractMethodInfo(): MethodInfo {
+function extractMethodInfo(curAst: t.Node): MethodInfo {
   let methodInfo: MethodInfo;
-  traverse(patternAst, {
+  traverse(curAst, {
     enter(path) {
       // in this example change all the variable `n` to `x`
       if (path.isClassMethod()) {
@@ -93,8 +103,8 @@ function getOtherImportDeclarations() {
   return imports!!;
 }
 
-const { methodDecorators, statements, params, returnArgs } =
-  extractMethodInfo();
+const method1Info = extractMethodInfo(patternAst);
+const method2Info = extractMethodInfo(pattern2Ast);
 const importSpecifiers = getNestCommonImportSpecifiers(patternAst);
 const otherImports = getOtherImportDeclarations();
 
@@ -103,12 +113,11 @@ function hasMethodDecorator(path: any, decoratorName?: string): boolean {
     !!path &&
     path.isClassMethod() &&
     !!path.node?.decorators?.length &&
-    (decoratorName
-      ? path.node?.decorators.some((decorator: any) => {
-          const exp = decorator?.expression as any;
-          return exp?.callee?.name === decoratorName;
-        })
-      : path.node?.decorators?.length)
+    (!decoratorName ||
+      path.node?.decorators.some((decorator: any) => {
+        const exp = decorator?.expression as any;
+        return exp?.callee?.name === decoratorName;
+      }))
   );
 }
 
@@ -141,15 +150,24 @@ function handleFile(filePath: string) {
         if (!hasMethodDecorator(path, 'UseGuards')) {
           path.node.decorators = [
             ...(path.node.decorators || []),
-            ...methodDecorators,
+            ...method1Info.methodDecorators,
           ];
-          if (hasMethodDecorator(path, 'Get')) {
-            path.node.body.body = [...statements, ...path.node.body.body];
-            path.node.params = [...params, ...path.node.params];
+          const isCreate = (path.node.key as any).name === 'create';
+          if (hasMethodDecorator(path, 'Get') || isCreate) {
+            const methodInfo = isCreate ? method2Info : method1Info;
+            path.node.body.body = [
+              ...methodInfo.statements,
+              ...path.node.body.body,
+            ];
+            path.node.params = [...methodInfo.params, ...path.node.params];
             const oldCallExp = (
               path.node.body.body[path.node.body.body.length - 1] as any
             ).argument as t.CallExpression;
-            oldCallExp.arguments = [...returnArgs, ...oldCallExp.arguments];
+            oldCallExp.arguments = [
+              ...(isCreate ? [] : methodInfo.returnArgs),
+              ...oldCallExp.arguments,
+              ...(!isCreate ? [] : methodInfo.returnArgs),
+            ];
           }
         }
       } else if (

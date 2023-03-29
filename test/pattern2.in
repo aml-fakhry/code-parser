@@ -7,8 +7,8 @@ export class TestClass {
   @UseGuards(AuthGuard('jwt'))
   create(@Req() req: Request) {
     const user = req.user;
-    const currentBranchIds = user['branchIds'];
-    return this.couponsService.create(currentBranchIds);
+    const userId = +user['userId'];
+    return this.attributesService.create(userId);
   }
 
 }
