@@ -98,15 +98,17 @@ const { methodDecorators, statements, params, returnArgs } =
 const importSpecifiers = getNestCommonImportSpecifiers(patternAst);
 const otherImports = getOtherImportDeclarations();
 
-function hasMethodDecorator(path: any, decoratorName: string): boolean {
+function hasMethodDecorator(path: any, decoratorName?: string): boolean {
   return (
     !!path &&
     path.isClassMethod() &&
     !!path.node?.decorators?.length &&
-    path.node?.decorators.some((decorator: any) => {
-      const exp = decorator?.expression as any;
-      return exp?.callee?.name === decoratorName;
-    })
+    (decoratorName
+      ? path.node?.decorators.some((decorator: any) => {
+          const exp = decorator?.expression as any;
+          return exp?.callee?.name === decoratorName;
+        })
+      : path.node?.decorators?.length)
   );
 }
 
@@ -135,18 +137,20 @@ function handleFile(filePath: string) {
 
   traverse(ast, {
     enter(path) {
-      if (path.isClassMethod() && hasMethodDecorator(path, 'Get')) {
+      if (path.isClassMethod() && hasMethodDecorator(path)) {
         if (!hasMethodDecorator(path, 'UseGuards')) {
           path.node.decorators = [
             ...(path.node.decorators || []),
             ...methodDecorators,
           ];
-          path.node.body.body = [...statements, ...path.node.body.body];
-          path.node.params = [...params, ...path.node.params];
-          const oldCallExp = (
-            path.node.body.body[path.node.body.body.length - 1] as any
-          ).argument as t.CallExpression;
-          oldCallExp.arguments = [...oldCallExp.arguments, ...returnArgs];
+          if (hasMethodDecorator(path, 'Get')) {
+            path.node.body.body = [...statements, ...path.node.body.body];
+            path.node.params = [...params, ...path.node.params];
+            const oldCallExp = (
+              path.node.body.body[path.node.body.body.length - 1] as any
+            ).argument as t.CallExpression;
+            oldCallExp.arguments = [...returnArgs, ...oldCallExp.arguments];
+          }
         }
       } else if (
         path.isImportDeclaration() &&
